@@ -6,12 +6,14 @@
 #include <time.h>
 #include <CL/opencl.hpp>
 
-
+//To do: add the calculation time counting 
+// compaire the difference of different mapping
 
 cl::Device getDefaultDevice();
 
 void initializeDevice();
 void parmamu(int* a, int* b, int* c, const int M,const int N, const int O);
+void transpose(int * in,int * out, const int M, const int N);
 
 std::vector<int> getdata(std::string filename);
 
@@ -160,6 +162,37 @@ void parmamu(int* a, int* b, int* c,  const int M, const int N,const int O) {
 	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(int), c);
 	queue.finish();
 }
+
+
+void transpose(int* in, int* out, const int M, const int N) {
+	/**
+	* Create buffers and allocate memory on the device.
+	**/
+	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * M * sizeof(int), in);
+	
+	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(int));
+	/**
+	* Set kernel arguments.
+	**/
+	cl::Kernel kernel(program, "transpose");
+
+	kernel.setArg(0, inBuf);
+	kernel.setArg(2, outBuf);
+	kernel.setArg(3, sizeof(unsigned int), &M);
+	kernel.setArg(4, sizeof(unsigned int), &N);
+
+
+	/**
+	* Execute the kernel function and collect its result.
+	**/
+
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N, M));
+	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, M * N * sizeof(int), out);
+	queue.finish();
+}
+
 
 std::vector<int> getdata(std::string filename) {
 	 std::ifstream infile(filename);
