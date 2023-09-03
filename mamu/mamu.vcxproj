@@ -137,8 +137,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\MatrixMultiplication_Kernels.cl" />
-    <None Include="..\simplemm.cl" />
     <None Include="..\temp.cl" />
+    <None Include="simplemm.cl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

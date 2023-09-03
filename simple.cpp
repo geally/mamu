@@ -13,9 +13,9 @@ cl::Device getDefaultDevice();
 
 void initializeDevice();
 void parmamu(int* a, int* b, int* c, const int M,const int N, const int O);
-void transpose(int * in,int * out, const int M, const int N);
-
-std::vector<int> getdata(std::string filename);
+void inverse(float * in,float * out, const int M, const int N);
+void anothertest(int* a, int* b, int* c, const int M, const int N, const int O);
+std::vector<float> getdata(std::string filename);
 
 cl::Program program;
 cl::Context context;
@@ -23,27 +23,30 @@ cl::Device device;
 
 int main() {
 
-	const int M =  512;
-	const int N = 4;
-	const int O =  2;
+	const int M =  3;
+	const int N = 6;
+	const int O =  3;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
 
 	const size_t COLS_B = N;
 
-	std::vector<int> a;
+	std::vector<float> a;
 	a = getdata("testdata.txt");
-	std::vector<int> b;
-	b = { 1,2,3,4,5,6,7,8 };
-	std::vector<int> cp(ROWS_A * COLS_B);
+	std::vector<float> b;
+	b = { 1,2,3,4,5,6 };
+	std::vector<float> cp(ROWS_A * COLS_B);
 
 	initializeDevice();
 
 	
 
-	parmamu(a.data(), b.data(), cp.data(), M, N, O);
+	//parmamu(a.data(), b.data(), cp.data(), M, N, O);
 
+	inverse(a.data(), cp.data(), M, N);
+
+	//anothertest(a.data(), b.data(), cp.data(), M, N, O);
 	//write the vector into a outputfile
 	std::ofstream outfile("output.txt");
 	//std::ostream_iterator<int> outiterator(outfile, "\n");
@@ -164,22 +167,21 @@ void parmamu(int* a, int* b, int* c,  const int M, const int N,const int O) {
 }
 
 
-void transpose(int* in, int* out, const int M, const int N) {
+void inverse(float* in, float* out, const int M, const int N) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * M * sizeof(int), in);
-	
-	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(int));
+	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * M * sizeof(float), in);
+	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(float));
 	/**
 	* Set kernel arguments.
 	**/
-	cl::Kernel kernel(program, "transpose");
+	cl::Kernel kernel(program, "inverse");
 
 	kernel.setArg(0, inBuf);
-	kernel.setArg(2, outBuf);
-	kernel.setArg(3, sizeof(unsigned int), &M);
-	kernel.setArg(4, sizeof(unsigned int), &N);
+	kernel.setArg(1, outBuf);
+	kernel.setArg(2, sizeof(unsigned int), &M);
+	kernel.setArg(3, sizeof(unsigned int), &N);
 
 
 	/**
@@ -188,15 +190,44 @@ void transpose(int* in, int* out, const int M, const int N) {
 
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
-	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N, M));
+	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N));
 	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, M * N * sizeof(int), out);
 	queue.finish();
 }
 
+void anothertest(int* a, int* b, int* c, const int M, const int N, const int O) {
+	/**
+	* Create buffers and allocate memory on the device.
+	**/
+	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O * M * sizeof(int), a);
+	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O * N * sizeof(int), b);
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(int));
+	/**
+	* Set kernel arguments.
+	**/
+	cl::Kernel kernel(program, "anothertest");
 
-std::vector<int> getdata(std::string filename) {
+	kernel.setArg(0, aBuf);
+	kernel.setArg(1, bBuf);
+	kernel.setArg(2, cBuf);
+	kernel.setArg(3, sizeof(unsigned int), &M);
+	kernel.setArg(4, sizeof(unsigned int), &N);
+	kernel.setArg(5, sizeof(unsigned int), &O);
+
+	/**
+	* Execute the kernel function and collect its result.
+	**/
+
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N, M));
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(int), c);
+	queue.finish();
+}
+
+std::vector<float> getdata(std::string filename) {
 	 std::ifstream infile(filename);
-	std::vector<int> vec;
+	std::vector<float> vec;
 	int line;
 	while (infile >> line ) {
 		vec.push_back(line);

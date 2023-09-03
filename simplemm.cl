@@ -23,3 +23,13 @@ __kernel void mamu(__global int* a,
     }
     c[index] = sum;
 }
+
+__kernel void inverse(__global int* a,
+                                    __global int* b,
+                                    const int M, 
+                                    const int N){
+  int colid = get_global_id(0);
+
+        b[colid]=a[colid]+a[colid];
+
+                                    }

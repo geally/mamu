@@ -26,7 +26,7 @@
     <None Include="..\MatrixMultiplication_Kernels.cl">
       <Filter>Source Files</Filter>
     </None>
-    <None Include="..\simplemm.cl">
+    <None Include="simplemm.cl">
       <Filter>Source Files</Filter>
     </None>
   </ItemGroup>
