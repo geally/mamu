@@ -12,9 +12,8 @@
 cl::Device getDefaultDevice();
 
 void initializeDevice();
-void parmamu(int* a, int* b, int* c, const int M,const int N, const int O);
+void parmamu(float* a, float* b, float* c, const int M,const int N, const int O);
 void inverse(float * in,float * out, const int M, const int N);
-void anothertest(int* a, int* b, int* c, const int M, const int N, const int O);
 std::vector<float> getdata(std::string filename);
 
 cl::Program program;
@@ -23,9 +22,9 @@ cl::Device device;
 
 int main() {
 
-	const int M =  3;
-	const int N = 6;
-	const int O =  3;
+	const int M =  100;
+	const int N = 100;
+	const int O =  100;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
@@ -35,18 +34,19 @@ int main() {
 	std::vector<float> a;
 	a = getdata("testdata.txt");
 	std::vector<float> b;
-	b = { 1,2,3,4,5,6 };
+	b = a;
+	//b = { 1,2,3,4,5,6 };
 	std::vector<float> cp(ROWS_A * COLS_B);
 
 	initializeDevice();
 
 	
 
-	//parmamu(a.data(), b.data(), cp.data(), M, N, O);
+	parmamu(a.data(), b.data(), cp.data(), M, N, O);
 
-	inverse(a.data(), cp.data(), M, N);
+	//inverse(a.data(), cp.data(), M, N);
 
-	//anothertest(a.data(), b.data(), cp.data(), M, N, O);
+
 	//write the vector into a outputfile
 	std::ofstream outfile("output.txt");
 	//std::ostream_iterator<int> outiterator(outfile, "\n");
@@ -55,7 +55,7 @@ int main() {
 	};
 
 	std::cout << "The first 10 element of results are:";
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 9; i++) {
 
 
 		std::cout << cp[i] << "\t";
@@ -136,7 +136,7 @@ void initializeDevice() {
 	}
 }
 
-void parmamu(int* a, int* b, int* c,  const int M, const int N,const int O) {
+void parmamu(float* a, float* b, float* c,  const int M, const int N,const int O) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
@@ -190,40 +190,11 @@ void inverse(float* in, float* out, const int M, const int N) {
 
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
-	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N));
+	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(M));
 	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, M * N * sizeof(int), out);
 	queue.finish();
 }
 
-void anothertest(int* a, int* b, int* c, const int M, const int N, const int O) {
-	/**
-	* Create buffers and allocate memory on the device.
-	**/
-	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O * M * sizeof(int), a);
-	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O * N * sizeof(int), b);
-	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(int));
-	/**
-	* Set kernel arguments.
-	**/
-	cl::Kernel kernel(program, "anothertest");
-
-	kernel.setArg(0, aBuf);
-	kernel.setArg(1, bBuf);
-	kernel.setArg(2, cBuf);
-	kernel.setArg(3, sizeof(unsigned int), &M);
-	kernel.setArg(4, sizeof(unsigned int), &N);
-	kernel.setArg(5, sizeof(unsigned int), &O);
-
-	/**
-	* Execute the kernel function and collect its result.
-	**/
-
-	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
-
-	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N, M));
-	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(int), c);
-	queue.finish();
-}
 
 std::vector<float> getdata(std::string filename) {
 	 std::ifstream infile(filename);
