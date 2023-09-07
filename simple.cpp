@@ -12,7 +12,8 @@
 cl::Device getDefaultDevice();
 
 void initializeDevice();
-void parmamu(float* a, float* b, float* c, const int M,const int N, const int O);
+void parmamu(cl_float* a, cl_float* b, cl_float* c, const int M,const int N, const int O);
+void compmamul(cl_float* a, cl_float* b, cl_float* c, const int M);
 void inverse(float * in,float * out, const int M, const int N);
 std::vector<float> getdata(std::string filename);
 
@@ -22,31 +23,35 @@ cl::Device device;
 
 int main() {
 
-	const int M =  100;
-	const int N = 100;
-	const int O =  100;
+	const int M =  1000;
+	const int N = 1000;
+	const int O =  4;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
 
 	const size_t COLS_B = N;
 
-	std::vector<float> a;
-	a = getdata("testdata.txt");
-	std::vector<float> b;
-	b = a;
-	//b = { 1,2,3,4,5,6 };
-	std::vector<float> cp(ROWS_A * COLS_B);
+	std::vector<cl_float> a;
+	
+	a=getdata("testdata.txt");
 
+	std::vector<cl_float> b;
+	b = a;
+
+	//b[1] = {1};
+
+	//std::vector<cl_float> cp(ROWS_A * COLS_B);
+	std::vector<cl_float> cp(4 * 4);
 	initializeDevice();
 
 	
 
-	parmamu(a.data(), b.data(), cp.data(), M, N, O);
+	//parmamu(a.data(), b.data(), cp.data(), M, N, O);
 
 	//inverse(a.data(), cp.data(), M, N);
 
-
+	compmamul(a.data(), b.data(), cp.data(), M);
 	//write the vector into a outputfile
 	std::ofstream outfile("output.txt");
 	//std::ostream_iterator<int> outiterator(outfile, "\n");
@@ -91,11 +96,11 @@ cl::Device getDefaultDevice(){
 
 void initializeDevice() {
 	device = getDefaultDevice();
-	std::cout << "Max compute units " << device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>() << std::endl;
+	//std::cout << "Max compute units " << device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>() << std::endl;
 	
+	//printf("  CL_DEVICE_LOCAL_MEM_TYPE:\t\t%s\n", CL_DEVICE_LOCAL_MEM_TYPE == 1 ? "local" : "global");
 
-
-	std::ifstream kernel_file("simplemm.cl");
+	std::ifstream kernel_file("test.cl");
 
 	std::string src(std::istreambuf_iterator<char>(kernel_file), (std::istreambuf_iterator<char>()));
 
@@ -136,13 +141,13 @@ void initializeDevice() {
 	}
 }
 
-void parmamu(float* a, float* b, float* c,  const int M, const int N,const int O) {
+void parmamu(cl_float* a, cl_float* b, cl_float* c,  const int M, const int N,const int O) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* M * sizeof(int), a);
-	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* N * sizeof(int), b);
-	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(int));
+	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* M * sizeof(cl_float), a);
+	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* N * sizeof(cl_float), b);
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(cl_float));
 	/**
 	* Set kernel arguments.
 	**/
@@ -162,10 +167,39 @@ void parmamu(float* a, float* b, float* c,  const int M, const int N,const int O
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
 	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N,M));
-	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(int), c);
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(cl_float), c);
 	queue.finish();
 }
 
+void compmamul(cl_float* a, cl_float* b, cl_float* c, const int M) {
+	/**
+	* Create buffers and allocate memory on the device.
+	**/
+	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, 4 * M * sizeof(cl_float), a);
+	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, 4 * M * sizeof(cl_float), b);
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, 4 * 4 * sizeof(cl_float));
+	
+	/**
+	* Set kernel arguments.
+	**/
+	cl::Kernel kernel(program, "mmmKernel");
+
+	kernel.setArg(0, aBuf);
+	kernel.setArg(1, bBuf);
+	kernel.setArg(2, cBuf);
+	kernel.setArg(3, sizeof(unsigned int), &M);
+	kernel.setArg(4, sizeof(cl_float),&M);
+	
+	/**
+	* Execute the kernel function and collect its result.
+	**/
+
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	queue.enqueueNDRangeKernel(kernel, NULL,cl::NDRange(M,M), cl::NDRange(8, 8));
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, 4 * 4 * sizeof(cl_float), c);
+	queue.finish();
+}
 
 void inverse(float* in, float* out, const int M, const int N) {
 	/**
