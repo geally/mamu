@@ -81,7 +81,7 @@ __kernel void mamu(__global float* a,
      * Compute element c[rowIndex, colIndex].
      **/
 
-    int sum = 0;
+    float sum = 0;
     for(int k = 0; k < K; k++){
         sum += a[rowIndex*K + k] * b[k*N + colIndex];
     }

@@ -12,11 +12,11 @@
 cl::Device getDefaultDevice();
 
 void initializeDevice();
-void parmamu(cl_float* a, cl_float* b, cl_float* c, const int M,const int N, const int O);
-void compmamul(cl_float* a, cl_float* b, cl_float* c, const int M, const int N);
-void inverse(cl_float * in,cl_float * out, const int M, const int N);
-void inverse2(cl_float* in, cl_float* out, const int M, const int N);
-std::vector<cl_float> getdata(std::string filename);
+void parmamu(float* a, float* b, float* c, const int M,const int N, const int O);
+void compmamul(float* a, float* b, float* c, const int M, const int N);
+void inverse(float * in,float * out, const int M, const int N);
+void inverse2(float* in, float* out, const int M, const int N);
+std::vector<float> getdata(std::string filename);
 
 cl::Program program;
 cl::Context context;
@@ -24,44 +24,38 @@ cl::Device device;
 
 int main() {
 
-	const int M = 9;
-	const int N = 9;
-	const int O = 9;
+	const int M = 20000;
+	const int N = 20000;
+	const int O = 20000;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
 	const size_t COLS_B = N;
 	clock_t start, end;
 
-	std::vector<cl_float> a;
+	std::vector<float> a;
 	
-	a=getdata("testdata.txt");
+	a=getdata("solve.txt");
 
-	std::vector<cl_float> b;
-	b = getdata("output.txt");
+	std::vector<float> b;
+	b = a;
 
 	//std::cout << b[1] <<std::endl;
 
-	std::vector<cl_float> cp(ROWS_A * COLS_B);
+	std::vector<float> cp(ROWS_A * COLS_B);
+	std::cout << a.size() << std::endl;
 	//std::vector<cl_float> cp(4 * 4);
 	initializeDevice();
-
-	start = clock();
-
-	parmamu(a.data(), a.data(), cp.data(), M, N, O);
-
 	//inverse(a.data(), cp.data(), M, N);
 
 	//compmamul(a.data(), b.data(), cp.data(), M,N);
 
-	end = clock();
-	double parTime = ((double)10e3 * (end - start)) / CLOCKS_PER_SEC;
-
-	std::cout << "Mean execution time: " << parTime << " ms." << std::endl;
+	
 
 	//inverse2 will use the loop which runing on CPU C++
 
-	/*for (int i = 0; i < M; i++) {
+	for (int i = 0; i < M; i++) {
+		start = clock();
 		float mid = a[i * M + i];
 		for (int j = 0; j < M; j++) {
 			if (j != i) {
@@ -74,24 +68,34 @@ int main() {
 		}
 		 inverse2(a.data(), cp.data(), M, i);
 		 a=cp;
-	}*/
+		 end = clock();
+		 double parTime = ((double)10e3 * (end - start)) / CLOCKS_PER_SEC;
+
+		 std::cout << "At round"<<i<< "execution time is: " << parTime << " ms." << std::endl;
+	}
+	
+	
 
 	//write the vector into a outputfile
+	
 
 	std::ofstream outfile("output2.txt");
-	//std::ostream_iterator<int> outiterator(outfile, "\n");
+	std::ostream_iterator<int> outiterator(outfile, "\n");
 
 	for (const auto& t : cp) {
 		outfile << t << std::endl;
 	};
 	
-
+	//test the result 
+	std::vector<float> temp(ROWS_A * COLS_B);
+	parmamu(a.data(), b.data(), temp.data(), M, N, O);
 	std::cout << "The first 15 element of results are:";
 	for (int i = 0; i < 15; i++) {
 
 
-		std::cout << cp[i] << "\t";
+		std::cout << temp[i] << "\t";
 	}
+	
 	
 	return 0;
 }
@@ -168,13 +172,13 @@ void initializeDevice() {
 	}
 }
 
-void parmamu(cl_float* a, cl_float* b, cl_float* c,  const int M, const int N,const int O) {
+void parmamu(float* a, float* b, float* c,  const int M, const int N,const int O) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* M * sizeof(cl_float), a);
-	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* N * sizeof(cl_float), b);
-	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(cl_float));
+	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* M * sizeof(float), a);
+	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O* N * sizeof(float), b);
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(float));
 	/**
 	* Set kernel arguments.
 	**/
@@ -194,17 +198,17 @@ void parmamu(cl_float* a, cl_float* b, cl_float* c,  const int M, const int N,co
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
 	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N,M));
-	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(cl_float), c);
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * N * sizeof(float), c);
 	queue.finish();
 }
 
-void compmamul(cl_float* a, cl_float* b, cl_float* c, const int M,const int N) {
+void compmamul(float* a, float* b, float* c, const int M,const int N) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, 4 * M * sizeof(cl_float), a);
-	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, 4 * N * sizeof(cl_float), b);
-	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, 4 * 4 * sizeof(cl_float));
+	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, 4 * M * sizeof(float), a);
+	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, 4 * N * sizeof(float), b);
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, 4 * 4 * sizeof(float));
 	
 	/**
 	* Set kernel arguments.
@@ -224,16 +228,16 @@ void compmamul(cl_float* a, cl_float* b, cl_float* c, const int M,const int N) {
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
 	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(N, 4));
-	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, 4 * 4 * sizeof(cl_float), c);
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, 4 * 4 * sizeof(float), c);
 	queue.finish();
 }
 
-void inverse(cl_float* in, cl_float* out, const int M, const int N) {
+void inverse(float* in, float* out, const int M, const int N) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * M * sizeof(cl_float), in);
-	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(cl_float));
+	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * M * sizeof(float), in);
+	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * N * sizeof(float));
 	/**
 	* Set kernel arguments.
 	**/
@@ -256,12 +260,12 @@ void inverse(cl_float* in, cl_float* out, const int M, const int N) {
 	queue.finish();
 }
 
-void inverse2(cl_float* in, cl_float* out, const int M, const int N) {
+void inverse2(float* in, float* out, const int M, const int N) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, M * M * sizeof(cl_float), in);
-	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * M * sizeof(cl_float));
+	cl::Buffer inBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, M * M * sizeof(float), in);
+	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * M * sizeof(float));
 	/**
 	* Set kernel arguments.
 	**/
@@ -288,7 +292,7 @@ std::vector<float> getdata(std::string filename) {
 	 std::ifstream infile(filename);
 	std::vector<float> vec;
 
-	int line;
+	float line;
 	while (infile >> line ) {
 		vec.push_back(line);
 	};
