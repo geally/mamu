@@ -166,3 +166,23 @@ int colid = get_global_id(0);
            
                
 }
+
+
+__kernel void constructmatrix(__global* y, __global* uniquey ){
+
+	int lengthx = y.size();
+	int lengthy = uniquey.size();
+	vector<int> ref ;
+for(int j=0, j<lengthy,j++){
+for (int i=0,i<lengthx,i++){
+	ref[i+lengthx*j]=uniquey[j];
+}}
+
+for i in lengthx*lengthy
+
+if(ref[i]==y[i]){
+y[i]=1;
+}else{y[i]=0;}
+	
+
+}
