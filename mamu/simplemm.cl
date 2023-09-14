@@ -177,13 +177,14 @@ __kernel void refmatrix(__global* y, __global* uniquey ){
 }
 
 __kernel void constructmatrix(__global* y, __global* uniquey){
-	int lengthx = y.size();
-	int lengthy = uniquey.size();
+	int lengthx = get_global_id(0); //y.size()
+	int lengthy = get_global_id(1);//uniquey.size()
 
-	ref= refmatrix(y,uniuey);
+	ref = refmatrix(y,uniuey);
+	
+for i in 1: length uniquey (yref[] = add y)
 
-for i in lengthx*lengthy
-if(ref[i]==y[i]){
-y[i]=1;
-}else{y[i]=0;}
+	if(refy[lengthx+y.size()*lengthy]==ref[lengthx+y.size()*lengthy]){refy[lengthx+y.size()*lengthy]=1;}
+	else{refy[lengthx+y.size()*lengthy]=0;}
+
 }
