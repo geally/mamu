@@ -169,22 +169,42 @@ int colid = get_global_id(0);
 
 
 __kernel void refmatrix(__global* y, __global* uniquey ){
-	int lengthx =get_global_id(0) ; //y.size()
+	int lengthx =get_global_id(0) ; 
+	int sizey=y.size();
 	int lengthy = get_global_id(1); //uniquey.size()
 	vector<int> ref ;
 	ref[lengthx+lengthy*sizey]=uniquey[lengthy];
-
+	return ref;
 }
 
-__kernel void constructmatrix(__global* y, __global* uniquey){
-	int lengthx = get_global_id(0); //y.size()
+__kernel void constructmatrix(__global* y, __global* uniquey,__global* out){
+	int lengthx = get_global_id(0); 
+	int sizey=y.size();
 	int lengthy = get_global_id(1);//uniquey.size()
 
 	ref = refmatrix(y,uniuey);
+
+	if(y[lengthx]==ref[lengthx+sizey*lengthy]){out[lengthx+sizey*lengthy]=1;}
+	else{out[lengthx+sizey*lengthy]=0;}
+
+}
+
+
+__kernel void otherrev(__global float* a,
+                                    __global float* b,
+                                    const int M, 
+                                    const int N){
+  int colid = get_global_id(0);
+  int rowid = get_global_id(1);
+
+if(colid!=N){
+            if(rowid!=N){
+                    b[colid*M+rowid]=a[colid*M+rowid]+a[colid*M+N]*a[N*M+rowid]/a[N*M+N];
+            }    else { b[colid*M+rowid] = a[colid*M+rowid]; } 
+     
+}else{
+        b[colid*M+rowid]=a[colid*M+rowid];
 	
-for i in 1: length uniquey (yref[] = add y)
-
-	if(refy[lengthx+y.size()*lengthy]==ref[lengthx+y.size()*lengthy]){refy[lengthx+y.size()*lengthy]=1;}
-	else{refy[lengthx+y.size()*lengthy]=0;}
-
+  } 
+  barrier(CLK_GLOBAL_MEM_FENCE);
 }
