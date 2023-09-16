@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <set>
 #include <time.h>
 #include <CL/opencl.hpp>
 
@@ -18,6 +19,7 @@ void inverse(float * in,float * out, const int M, const int N);
 void inverse2(float* in, float* out, const int M, const int N);
 void inverse3(float* in, float* out, const int M, const int N);
 void pretreat(float* in, float* out, const int M, const int N);
+void strucmatrix(float* y);
 std::vector<float> getdata(std::string filename);
 
 cl::Program program;
@@ -395,4 +397,58 @@ std::vector<float> getdata(std::string filename) {
 		vec.push_back(line);
 	};
 	return vec;
+};
+
+void strucmatrix(int* y){
+    std::set<int> t;
+    for (int i =0; i<y.size();i++){
+        t.insert(vec[i]);
+    }
+    
+    std::vector<int> get(t.begin(),t.end());
+    /*for (int j =0; j<get.size();j++){
+        std::cout<< get[j]<<std::endl;
+    }*/
+	int* yunique=get.data();
+	
+	cl::Buffer inBuf(context, CL_MEM_READ_WRITE |  CL_MEM_COPY_HOST_PTR, M * M * sizeof(float), y);
+	cl::Buffer inBuf(context, CL_MEM_READ_WRITE |  CL_MEM_COPY_HOST_PTR, M * M * sizeof(float), yunique);
+	cl::Buffer outBuf(context, CL_MEM_READ_WRITE, M * M * sizeof(float));
+	/**
+	* Set kernel arguments.
+	**/
+	cl::Kernel kernel(program, "pretreat");
+
+	kernel.setArg(0, inBuf);
+	kernel.setArg(1, outBuf);
+	kernel.setArg(2, sizeof(unsigned int), &M);
+	kernel.setArg(3, sizeof(unsigned int), &N);
+
+	cl::Kernel kernel2(program, "pretreat");
+
+	kernel2.setArg(0, outBuf);
+	kernel2.setArg(1, inBuf);
+	kernel2.setArg(2, sizeof(unsigned int), &M);
+	kernel2.setArg(3, sizeof(unsigned int), &N);
+
+
+	/**
+	* Execute the kernel function and collect its result.
+	**/
+
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	for (int i = 0; i < 2; i++) {
+		if (i == 0){
+			queue.enqueueNDRangeKernel( kernel, cl::NullRange, cl::NDRange(M));
+			
+		}
+		else {
+			queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(M));
+		}
+		
+	}
+	//queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(M));
+	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, M * M * sizeof(float), out);
+	queue.finish();
 };
