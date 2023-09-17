@@ -190,21 +190,41 @@ __kernel void constructmatrix(__global* y, __global* uniquey,__global* out){
 }
 
 
+__kernel void othertreat(__global float* a,
+                                    const int M,const int i){
+int colid = get_global_id(0);
+		float mid = a[i * M + i];
+        for(int j=0; j<  M;j++){
+            b[colid * M + j]=a[colid * M + j];
+			if (colid != i) {
+				b[i * M + colid] = a[i * M + colid] / mid;
+				b[colid * M + i] = -a[colid * M + i] / mid;
+			}
+			else {
+				b[i * M + i] = 1 / a[i * M + i];
+			}  } 
+            barrier(CLK_GLOBAL_MEM_FENCE);
+           
+     return a;          
+}
+
 __kernel void otherrev(__global float* a,
                                     __global float* b,
                                     const int M, 
                                     const int N){
   int colid = get_global_id(0);
   int rowid = get_global_id(1);
+  
+  a = othertreat(a,M,N);
 
 if(colid!=N){
             if(rowid!=N){
                     b[colid*M+rowid]=a[colid*M+rowid]+a[colid*M+N]*a[N*M+rowid]/a[N*M+N];
-            }    else { b[colid*M+rowid] = a[colid*M+rowid]; } 
+            }else { b[colid*M+rowid] = a[colid*M+rowid]; } 
      
-}else{
-        b[colid*M+rowid]=a[colid*M+rowid];
-	
-  } 
+			}else{
+					b[colid*M+rowid]=a[colid*M+rowid];
+					} 
   barrier(CLK_GLOBAL_MEM_FENCE);
+  return b;
 }
