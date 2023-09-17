@@ -18,6 +18,7 @@ void compmamul(float* a, float* b, float* c, const int M, const int N);
 void inverse(float * in,float * out, const int M, const int N);
 void inverse2(float* in, float* out, const int M, const int N);
 void inverse3(float* in, float* out, const int M, const int N);
+void inverse4(float* in, float* out, const int M, const int N);
 void pretreat(float* in, float* out, const int M, const int N);
 void strucmatrix(float* y);
 std::vector<float> getdata(std::string filename);
@@ -434,3 +435,48 @@ void strucmatrix(int* y){
 	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, lengthy * lengthuni * sizeof(int), out);
 	queue.finish();
 };
+void inverse4(float* in, float* out, const int M, const int N) {
+	/**
+	* Create buffers and allocate memory on the device.
+	**/
+	cl::Buffer in1Buf(context, CL_MEM_READ_WRITE ,  M * M * sizeof(float));
+	cl::Buffer in2Buf(context, CL_MEM_READ_WRITE  , M * M * sizeof(float));
+	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * M * sizeof(float));
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+	
+	queue.enqueueReadBuffer(context,in1Buf, CL_TRUE, 0, M * M * sizeof(float), in);
+	
+	//Kernel 0
+	cl::Kernel kernel0(program, "otherrev");
+	kernel0.setArg(0, in1Buf);
+	kernel0.setArg(1, in2Buf);
+	kernel0.setArg(2, sizeof(unsigned int), &M);
+	
+
+	//Kernel 1
+	cl::Kernel kernel1(program, "otherrev");
+
+	kernel1.setArg(0, in2Buf);
+	kernel1.setArg(1, in1Buf);
+	kernel1.setArg(2, sizeof(unsigned int), &M);
+	
+	
+	for(int i = 0; i<M; i++){
+		if(i%2 == 0){
+			kernel0.setArg(3, sizeof(unsigned int), i);
+		queue.enqueueNDRangeKernel(kernel0, cl::NullRange, cl::NDRange(M,M), cl::NullRange);
+		}else{
+			kernel1.setArg(3, sizeof(unsigned int), i);
+		queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(M,M),cl::NullRange);
+		}	
+	}
+
+		if(M%2==0){
+			queue.enqueueReadBuffer(in2Buf, CL_TRUE, 0, M * M * sizeof(float), out);
+		}else{
+			queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out);
+		}
+		
+	
+	queue.finish();
+}
