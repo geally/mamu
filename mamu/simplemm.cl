@@ -168,31 +168,26 @@ int colid = get_global_id(0);
 }
 
 
-__kernel void refmatrix(__global* y, __global* uniquey ){
+__kernel void refmatrix(__global int * y, __global int * uniquey, __global int* out, const int N ){
 	int lengthx =get_global_id(0) ; 
-	int sizey=y.size();
 	int lengthy = get_global_id(1); //uniquey.size()
-	vector<int> ref ;
-	ref[lengthx+lengthy*sizey]=uniquey[lengthy];
-	return ref;
+	out[lengthx+lengthy*N]=uniquey[lengthy];
 }
 
-__kernel void constructmatrix(__global* y, __global* uniquey,__global* out){
+__kernel void constructmatrix(__global int * y, __global int * uniquey,__global int* out, __global int *ref,const int N ){
 	int lengthx = get_global_id(0); 
-	int sizey=y.size();
 	int lengthy = get_global_id(1);//uniquey.size()
 
-	ref = refmatrix(y,uniuey);
-
-	if(y[lengthx]==ref[lengthx+sizey*lengthy]){out[lengthx+sizey*lengthy]=1;}
-	else{out[lengthx+sizey*lengthy]=0;}
+	if(y[lengthx]==ref[lengthx+N*lengthy]){out[lengthx+N*lengthy]=1;}
+	else{out[lengthx+N*lengthy]=0;}
 
 }
 
 
-__kernel void othertreat(__global float* a,
+__kernel void othertreat(__global float* a,__global float* b,
                                     const int M,const int i){
 int colid = get_global_id(0);
+
 		float mid = a[i * M + i];
         for(int j=0; j<  M;j++){
             b[colid * M + j]=a[colid * M + j];
@@ -204,8 +199,7 @@ int colid = get_global_id(0);
 				b[i * M + i] = 1 / a[i * M + i];
 			}  } 
             barrier(CLK_GLOBAL_MEM_FENCE);
-           
-     return a;          
+                   
 }
 
 __kernel void otherrev(__global float* a,
@@ -214,8 +208,6 @@ __kernel void otherrev(__global float* a,
                                     const int N){
   int colid = get_global_id(0);
   int rowid = get_global_id(1);
-  
-  a = othertreat(a,M,N);
 
 if(colid!=N){
             if(rowid!=N){
@@ -226,5 +218,4 @@ if(colid!=N){
 					b[colid*M+rowid]=a[colid*M+rowid];
 					} 
   barrier(CLK_GLOBAL_MEM_FENCE);
-  return b;
 }

@@ -20,8 +20,9 @@ void inverse2(float* in, float* out, const int M, const int N);
 void inverse3(float* in, float* out, const int M, const int N);
 void inverse4(float* in, float* out, const int M, const int N);
 void pretreat(float* in, float* out, const int M, const int N);
-void strucmatrix(float* y);
+void strucmatrix(int* y, int* uniquey, int* out, const int N, const int lengthuni);
 std::vector<float> getdata(std::string filename);
+std::vector<int> getint(std::string filename);
 
 cl::Program program;
 cl::Context context;
@@ -41,16 +42,33 @@ int main() {
 
 	std::vector<float> a;
 	
-	a=getdata("solve.txt");
+	//a=getdata("test.txt");
+
+	std::vector<int> a1;
+	a1 = getint("fix.txt");
 
 	std::vector<float> b;
-	b = a;
+	//b = a;
 
 	//std::cout << b[1] <<std::endl;
 
 	std::vector<float> cp(ROWS_A * COLS_B);
-	std::cout <<"A matrix size:" << a.size() << std::endl;
+
+	std::cout <<"A matrix size:" << a1.size() << std::endl;
 	//std::vector<cl_float> cp(4 * 4);
+	const int A = a1.size();
+	std::set<int> t;
+	for (int i = 0; i < A; i++) {
+		t.insert(a1[i]);
+	}
+
+	std::vector<int> get(t.begin(), t.end());
+	const int lengthuni = get.size();
+	for (int j =0; j<lengthuni;j++){
+		std::cout<< get[j]<<std::endl;
+	}
+
+	std::cout << lengthuni << std::endl;
 
 	initializeDevice();
 
@@ -63,6 +81,9 @@ int main() {
 	//parmamu(a.data(), b.data(), cp.data(), M, N, O);
 	
 	//inverse2 will use the loop which runing on CPU C++
+
+	std::vector<int> c(A* lengthuni);
+	strucmatrix(a1.data(),get.data(), c.data(), A, lengthuni);
 
 	/*for (int i = 0; i < M; i++) {
 		//start = clock();
@@ -86,7 +107,7 @@ int main() {
 
 	//inverse 3 will use the swap to exchange the data
 	
-	for (int i = 0; i < N; i++)inverse3(a.data(), cp.data(), M, i);
+	//for (int i = 0; i < N; i++)inverse3(a.data(), cp.data(), M, i);
 	//pretreat(a.data(),cp.data(), M, 0);
 	end = clock();
 	double parTime = ((double)10e2 * (end - start)) / CLOCKS_PER_SEC;
@@ -107,11 +128,11 @@ int main() {
 	//std::vector<float> temp(ROWS_A * COLS_B);
 	//parmamu(a.data(), b.data(), temp.data(), M, N, O);
 	std::cout << "The first 9 element of results are:";
-	for (int i = 0; i < 9; i++) {
+	for (int i = 0; i < 30; i++) {
 
-		std::cout << a[i] << std::endl;
+		//std::cout << a1[i] << std::endl;
 
-		std::cout << cp[i] << "\t";
+		std::cout << c[i] << "\t";
 	}
 	
 	
@@ -400,39 +421,49 @@ std::vector<float> getdata(std::string filename) {
 	return vec;
 };
 
-void strucmatrix(int* y){
-    std::set<int> t;
-	int lengthy=y.size();
-    for (int i =0; i<lengthy;i++){
-        t.insert(vec[i]);
-    }
-    
-    std::vector<int> get(t.begin(),t.end());
-	int lengthuni=get.size();
-    /*for (int j =0; j<lengthuni;j++){
-        std::cout<< get[j]<<std::endl;
-    }*/
-	int* yunique=get.data();
+std::vector<int> getint(std::string filename) {
+	std::ifstream infile(filename);
+	std::vector<int> vec;
+
+	int line;
+	while (infile >> line) {
+		vec.push_back(line);
+	};
+	return vec;
+};
+
+void strucmatrix(int* y,int *uniquey,int * out, const int N,const int lengthuni){
 	
-	cl::Buffer inBuf1(context, CL_MEM_READ_WRITE |  CL_MEM_COPY_HOST_PTR, lengthy  * sizeof(int), y);
-	cl::Buffer inBuf2(context, CL_MEM_READ_WRITE |  CL_MEM_COPY_HOST_PTR, lengthuni * sizeof(int), yunique);
-	cl::Buffer outBuf(context, CL_MEM_READ_WRITE, lengthy * lengthuni * sizeof(int));
+	cl::Buffer inBuf1(context, CL_MEM_READ_ONLY |  CL_MEM_COPY_HOST_PTR, N  * sizeof(int), y);
+	cl::Buffer inBuf2(context, CL_MEM_READ_ONLY |  CL_MEM_COPY_HOST_PTR, lengthuni * sizeof(int), uniquey);
+	cl::Buffer outBuf(context, CL_MEM_READ_WRITE, N * lengthuni * sizeof(int));
+	cl::Buffer out2Buf(context, CL_MEM_READ_WRITE, N * lengthuni * sizeof(int));
 	/**
 	* Set kernel arguments.
 	**/
-	cl::Kernel kernel(program, "constructmatrix");
+	cl::Kernel kernel1(program, "refmatrix");
 
-	kernel.setArg(0, inBuf1);
-	kernel.setArg(1, inBuf2);
-	kernel.setArg(2, outBuf);
+	kernel1.setArg(0, inBuf1);
+	kernel1.setArg(1, inBuf2);
+	kernel1.setArg(2, outBuf);
+	kernel1.setArg(3, sizeof(unsigned int),&N);
 
+	//cl::Kernel kernel2(program, "constructmatrix");
+	//kernel2.setArg(0, inBuf1);
+	//kernel2.setArg(1, inBuf2);
+	//kernel2.setArg(2, outBuf);
+	//kernel2.setArg(3, out2Buf);
+	//kernel2.setArg(4, sizeof(unsigned int), &N);
+
+	
 	/**
 	* Execute the kernel function and collect its result.
 	**/
 
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
-	queue.enqueueNDRangeKernel( kernel, cl::NullRange, cl::NDRange(lengthy , lengthuni));		
-	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, lengthy * lengthuni * sizeof(int), out);
+	queue.enqueueNDRangeKernel( kernel1, cl::NullRange, cl::NDRange(N , lengthuni));	
+	//queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(N, lengthuni));
+	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, N * lengthuni * sizeof(int), out);
 	queue.finish();
 };
 void inverse4(float* in, float* out, const int M, const int N) {
@@ -444,7 +475,7 @@ void inverse4(float* in, float* out, const int M, const int N) {
 	cl::Buffer outBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * M * sizeof(float));
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 	
-	queue.enqueueReadBuffer(context,in1Buf, CL_TRUE, 0, M * M * sizeof(float), in);
+	queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), in);
 	
 	//Kernel 0
 	cl::Kernel kernel0(program, "otherrev");
@@ -462,11 +493,12 @@ void inverse4(float* in, float* out, const int M, const int N) {
 	
 	
 	for(int i = 0; i<M; i++){
+		const int N = i;
 		if(i%2 == 0){
-			kernel0.setArg(3, sizeof(unsigned int), i);
+			kernel0.setArg(3, sizeof(unsigned int), &N);
 		queue.enqueueNDRangeKernel(kernel0, cl::NullRange, cl::NDRange(M,M), cl::NullRange);
 		}else{
-			kernel1.setArg(3, sizeof(unsigned int), i);
+			kernel1.setArg(3, sizeof(unsigned int), &N);
 		queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(M,M),cl::NullRange);
 		}	
 	}
