@@ -28,9 +28,9 @@ cl::Device device;
 
 int main() {
 
-	const int M = 3;
-	const int N = 3;
-	const int O = 3;
+	const int M = 1000;
+	const int N = 1000;
+	const int O = 1000;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
@@ -39,7 +39,7 @@ int main() {
 
 	std::vector<float> a;
 	
-	a=getdata("fix.txt");
+	a=getdata("testdata.txt");
 
 	//std::vector<int> a1;
 	//a1 = getint("fix.txt");
@@ -343,7 +343,6 @@ void inverse3(float* in, float* out, const int M, const int N) {
 
 	cl::Buffer in1Buf(context, CL_MEM_READ_WRITE  , M * M * sizeof(float));
 	cl::Buffer in2Buf(context, CL_MEM_READ_WRITE , M * M * sizeof(float));
-	cl::Buffer outBuf(context, CL_MEM_READ_WRITE , M * M * sizeof(float));
 	
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 	queue.enqueueWriteBuffer(in1Buf,CL_TRUE, 0,M * M * sizeof(float), in);
@@ -357,7 +356,7 @@ void inverse3(float* in, float* out, const int M, const int N) {
 	cl::Event eventname1;
 	cl::Event eventname2;
 	std::vector<cl::Event> events;
-	
+	events.push_back(eventname1);
 	for (int i = 0; i < M; i++) {
 		kernel0.setArg(0, in1Buf);
 		kernel0.setArg(1, in2Buf);
@@ -365,18 +364,19 @@ void inverse3(float* in, float* out, const int M, const int N) {
 		kernel0.setArg(3, sizeof(unsigned int), &i);
 
 		queue.enqueueNDRangeKernel(kernel0, cl::NullRange, cl::NDRange(M), cl::NullRange, 0, &eventname1);
-		events.push_back(eventname1);
+		
 
 		kernel1.setArg(0, in2Buf);
-		kernel1.setArg(1, outBuf);
+		kernel1.setArg(1, in1Buf);
 		kernel1.setArg(2, sizeof(unsigned int), &M);
 		kernel1.setArg(3, sizeof(unsigned int), &i);
 		queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(M, M), cl::NullRange, &events, &eventname2);
+		
 	}
 	
 	
 	events.push_back(eventname2);
-	queue.enqueueReadBuffer(outBuf, CL_TRUE, 0, M * M * sizeof(float), out,&events);
+	queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out,&events);
 	queue.finish();
 }
 
