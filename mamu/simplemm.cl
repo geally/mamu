@@ -163,8 +163,7 @@ int colid = get_global_id(0);
 				b[i * M + i] = 1 / a[i * M + i];
 			}  } 
             barrier(CLK_GLOBAL_MEM_FENCE);
-           
-               
+          // printf("%f",mid);       
 }
 
 
@@ -186,3 +185,26 @@ __kernel void constructmatrix(__global int * y, __global int * uniquey,__global 
 }
 
 
+__kernel void cbind(__global float* a,
+                                    __global float* b,
+                                    __global float* c,
+                                    const int M, 
+                                    const int N, 
+                                    const int K){
+    
+    /**
+     * Get work-item identifiers.
+     **/
+    
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+   
+   if(x <M){
+    c[y*(M+N)+x]=a[y*M+x];
+    }else{
+       c[y*(M+N)+x]=b[y*N+x-M];
+        
+    }
+    printf("%f",c[K+x]);
+    
+}

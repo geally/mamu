@@ -18,6 +18,7 @@ void inverse2(float* in, float* out, const int M, const int N);
 void inverse3(float* in, float* out, const int M, const int N);
 void pretreat(float* in, float* out, const int M, const int N);
 void strucmatrix(int* y, int* uniquey, int* out, const int N, const int lengthuni);
+void cbind(float* a, float* b, float* c, const int M, const int N, const int O);
 std::vector<float> getdata(std::string filename);
 std::vector<int> getint(std::string filename);
 
@@ -28,9 +29,9 @@ cl::Device device;
 
 int main() {
 
-	const int M = 1000;
-	const int N = 1000;
-	const int O = 1000;
+	const int M = 4;
+	const int N = 4;
+	const int O = 4;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
@@ -39,17 +40,17 @@ int main() {
 
 	std::vector<float> a;
 	
-	a=getdata("testdata.txt");
+	a=getdata("fix.txt");
 
 	//std::vector<int> a1;
 	//a1 = getint("fix.txt");
 
 	std::vector<float> b;
-	//b = a;
+	b = a;
 
 	//std::cout << b[1] <<std::endl;
 
-	std::vector<float> cp(ROWS_A * COLS_B);
+	std::vector<float> cp(ROWS_A *2* COLS_A);
 	
 	std::cout << "A matrix size:" << a.size() << std::endl;
 
@@ -110,8 +111,9 @@ int main() {
 
 	//inverse 3 will use the swap to exchange the data
 
-	inverse3(a.data(), cp.data(), M, N);
+	//inverse3(a.data(), cp.data(), M, N);
 
+	cbind(a.data(), b.data(), cp.data(), M, N, O);
 	//for (int i = 0; i < N; i++)inverse3(a.data(), cp.data(), M, i);
 	//pretreat(a.data(),cp.data(), M, 0);
 	end = clock();
@@ -132,8 +134,8 @@ int main() {
 	//test the result 
 	//std::vector<float> temp(ROWS_A * COLS_B);
 	//parmamu(a.data(), b.data(), temp.data(), M, N, O);
-	std::cout << "The first 9 element of results are:";
-	for (int i = 0; i < 9; i++) {
+	std::cout << "The first 32 element of results are:";
+	for (int i = 0; i < 32; i++) {
 
 		//std::cout << a1[i] << std::endl;
 
@@ -337,10 +339,6 @@ void inverse3(float* in, float* out, const int M, const int N) {
 	/**
 	* Create buffers and allocate memory on the device.
 	**/
-	cl::Event event_pretreat, event_inverse;
-	cl::vector<cl_event> waitlist[1];
-	
-
 	cl::Buffer in1Buf(context, CL_MEM_READ_WRITE  , M * M * sizeof(float));
 	cl::Buffer in2Buf(context, CL_MEM_READ_WRITE , M * M * sizeof(float));
 	
@@ -356,27 +354,39 @@ void inverse3(float* in, float* out, const int M, const int N) {
 	cl::Event eventname1;
 	cl::Event eventname2;
 	std::vector<cl::Event> events;
-	events.push_back(eventname1);
-	for (int i = 0; i < M; i++) {
-		kernel0.setArg(0, in1Buf);
-		kernel0.setArg(1, in2Buf);
-		kernel0.setArg(2, sizeof(unsigned int), &M);
-		kernel0.setArg(3, sizeof(unsigned int), &i);
+	//events.push_back(eventname1);
+	//events.push_back(eventname2);
+	int lim = trunc(M / 50);
+	for(int j=0;j<lim + 1;j++){
+		int lim1 = 51;
+		int lim2 = lim - j;
+		if (lim2==0)  lim1 = M-j*50; 
+		for (int i = 0; i < lim1; i++) {
+			int O = j * 50 + i;
+			events.clear();
+			kernel0.setArg(0, in1Buf);
+			kernel0.setArg(1, in2Buf);
+			kernel0.setArg(2, sizeof(unsigned int), &M);
+			kernel0.setArg(3, sizeof(unsigned int), &O);
+			queue.enqueueNDRangeKernel(kernel0, cl::NullRange, cl::NDRange(M), cl::NullRange, 0, &eventname1);
+			events.push_back(eventname1);
 
-		queue.enqueueNDRangeKernel(kernel0, cl::NullRange, cl::NDRange(M), cl::NullRange, 0, &eventname1);
-		
+			kernel1.setArg(0, in2Buf);
+			kernel1.setArg(1, in1Buf);
+			kernel1.setArg(2, sizeof(unsigned int), &M);
+			kernel1.setArg(3, sizeof(unsigned int), &O);
+			queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(M, M), cl::NullRange, &events, &eventname2);
+			events.push_back(eventname2);	
+		}
+		queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), in);
 
-		kernel1.setArg(0, in2Buf);
-		kernel1.setArg(1, in1Buf);
-		kernel1.setArg(2, sizeof(unsigned int), &M);
-		kernel1.setArg(3, sizeof(unsigned int), &i);
-		queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(M, M), cl::NullRange, &events, &eventname2);
-		
+		queue.enqueueWriteBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out);
+	
 	}
 	
 	
-	events.push_back(eventname2);
-	queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out,&events);
+	
+	queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out, &events);
 	queue.finish();
 }
 
@@ -488,3 +498,33 @@ void strucmatrix(int* y,int *uniquey,int * out, const int N,const int lengthuni)
 	queue.finish();
 };
 
+void cbind(float* a, float* b, float* c, const int M, const int N, const int O) {
+	const int T = M +N;
+	/**
+	* Create buffers and allocate memory on the device.
+	**/
+	cl::Buffer aBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O * M * sizeof(float), a);
+	cl::Buffer bBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, O * N * sizeof(float), b);
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, T * O * sizeof(float));
+	/**
+	* Set kernel arguments.
+	**/
+	cl::Kernel kernel(program, "cbind");
+
+	kernel.setArg(0, aBuf);
+	kernel.setArg(1, bBuf);
+	kernel.setArg(2, cBuf);
+	kernel.setArg(3, sizeof(unsigned int), &M);
+	kernel.setArg(4, sizeof(unsigned int), &N);
+	kernel.setArg(5, sizeof(unsigned int), &O);
+
+	/**
+	* Execute the kernel function and collect its result.
+	**/
+
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
+	queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(T, O));
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, T * O * sizeof(float), c);
+	queue.finish();
+}
