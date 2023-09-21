@@ -167,6 +167,9 @@ int colid = get_global_id(0);
 }
 
 
+
+
+
 __kernel void refmatrix(__global int * y, __global int * uniquey, __global int* out, const int N ){
 	int lengthx =get_global_id(0) ; 
 	int lengthy = get_global_id(1); //uniquey.size()
@@ -205,6 +208,30 @@ __kernel void cbind(__global float* a,
        c[y*(M+N)+x]=b[y*N+x-M];
         
     }
-    printf("%f",c[K+x]);
+    //printf("%f",c[K+x]);
+    
+}
+
+__kernel void rbind(__global float* a,
+                                    __global float* b,
+                                    __global float* c,
+                                    const int M, 
+                                    const int N, 
+                                    const int K){
+    
+    /**
+     * Get work-item identifiers.
+     **/
+    
+    int x = get_global_id(0);
+    int y = get_global_id(1);
+   
+   if(y <M){
+    c[y*K+x]=a[y*K+x];
+    }else{
+       c[y*K+x]=b[(y-M)*K+x];
+        
+    }
+    printf("%f",c[y*K+x]);
     
 }
