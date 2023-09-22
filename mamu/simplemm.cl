@@ -146,6 +146,7 @@ if(colid!=N){
 	
   } 
   barrier(CLK_GLOBAL_MEM_FENCE);
+  //printf("%i",N); 
 }	
 
 

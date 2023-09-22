@@ -16,6 +16,7 @@ void compmamul(float* a, float* b, float* c, const int M, const int N);
 void inverse(float * in,float * out, const int M, const int N);
 void inverse2(float* in, float* out, const int M, const int N);
 void inverse3(float* in, float* out, const int M, const int N);
+void inverse4(float* in, float* out, const int M, const int N);
 void pretreat(float* in, float* out, const int M, const int N);
 void strucmatrix(int* y, int* uniquey, int* out, const int N, const int lengthuni);
 void cbind(float* a, float* b, float* c, const int M, const int N, const int O);
@@ -24,15 +25,18 @@ std::vector<float> getdata(std::string filename);
 std::vector<int> getint(std::string filename);
 
 cl::Program program;
+cl::Program program1;
 cl::Context context;
+cl::Context context1;
 cl::Device device;
+cl::Device device1;
 
 
 int main() {
 
-	const int M = 4;
-	const int N = 4;
-	const int O = 4;
+	const int M = 60;
+	const int N = 60;
+	const int O = 60;
 
 	const size_t ROWS_A = M;
 	const size_t COLS_A = O;
@@ -41,7 +45,7 @@ int main() {
 
 	std::vector<float> a;
 	
-	a=getdata("fix.txt");
+	a=getdata("solve60.txt");
 
 	//std::vector<int> a1;
 	//a1 = getint("fix.txt");
@@ -84,7 +88,7 @@ int main() {
 
 	//compmamul(a.data(), b.data(), cp.data(), M,N);
 
-	//parmamu(a.data(), b.data(), cp.data(), M, N, O);
+	
 	
 	//inverse2 will use the loop which runing on CPU C++
 
@@ -104,17 +108,26 @@ int main() {
 		}
 		 inverse2(a.data(), cp.data(), M, i);
 		 a=cp;
-		// end = clock();
+		//end = clock();
 		// double parTime = ((double)10e3 * (end - start)) / CLOCKS_PER_SEC;
 
 		// std::cout << "At round"<<i<< "execution time is: " << parTime << " ms." << std::endl;
-	}*/
+	}
+	*/
+	
 
 	//inverse 3 will use the swap to exchange the data
 
-	//inverse3(a.data(), cp.data(), M, N);
 
-	rbind(a.data(), b.data(), cp.data(), M, N, O);
+		inverse4(a.data(), cp.data(), M,N);
+
+
+	
+	
+
+	//parmamu(b.data(), cp.data(), a.data(), M, N, O);
+
+	//rbind(a.data(), b.data(), cp.data(), M, N, O);
 	//for (int i = 0; i < N; i++)inverse3(a.data(), cp.data(), M, i);
 	//pretreat(a.data(),cp.data(), M, 0);
 	end = clock();
@@ -135,14 +148,13 @@ int main() {
 	//test the result 
 	//std::vector<float> temp(ROWS_A * COLS_B);
 	//parmamu(a.data(), b.data(), temp.data(), M, N, O);
-	std::cout << "The first 32 element of results are:";
+	
 	for (int i = 0; i < 32; i++) {
 
 		//std::cout << a1[i] << std::endl;
 
 		std::cout << cp[i] << "\t";
 	}
-	
 	
 	return 0;
 }
@@ -210,6 +222,7 @@ void initializeDevice() {
 
 	context = cl::Context(device);
 	program = cl::Program(context,sources);
+	program1 = cl::Program(context1, sources);
 
 	auto err = program.build();
 	if (err != CL_BUILD_SUCCESS) {
@@ -344,6 +357,7 @@ void inverse3(float* in, float* out, const int M, const int N) {
 	cl::Buffer in2Buf(context, CL_MEM_READ_WRITE , M * M * sizeof(float));
 	
 	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+
 	queue.enqueueWriteBuffer(in1Buf,CL_TRUE, 0,M * M * sizeof(float), in);
 	//Kernel 0
 	cl::Kernel kernel0(program, "pretreat");
@@ -385,7 +399,7 @@ void inverse3(float* in, float* out, const int M, const int N) {
 		queue.enqueueWriteBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out);
 	
 	}*/
-	
+
 	for (int i = 0; i < N; i++) {
 		events.clear();
 		kernel0.setArg(0, in1Buf);
@@ -405,6 +419,78 @@ void inverse3(float* in, float* out, const int M, const int N) {
 	}
 	
 	queue.enqueueReadBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), out, &events);
+	queue.finish();
+}
+
+void inverse4(float* in, float* out, const int M, const int N) {
+	/**
+	* Create buffers and allocate memory on the device.
+	**/
+	cl::Buffer in1Buf(context, CL_MEM_READ_WRITE, M * M * sizeof(float));
+	cl::Buffer in2Buf(context, CL_MEM_READ_WRITE, M * M * sizeof(float));
+	cl::Buffer in3Buf(context, CL_MEM_READ_WRITE, M * M * sizeof(float));
+	cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
+	queue.enqueueWriteBuffer(in1Buf, CL_TRUE, 0, M * M * sizeof(float), in);
+	
+
+	std::vector<cl::Event> events;
+	//events.push_back(eventname1);
+	//events.push_back(eventname2);
+	//Kernel 0
+	cl::Kernel kernel0(program, "pretreat");
+	//Kernel 1
+	cl::Kernel kernel1(program, "inverse2");
+	//Kernel 2
+	cl::Kernel kernel2(program, "pretreat");
+	//Kernel 3
+	cl::Kernel kernel3(program, "inverse2");
+	
+
+	for (int i = 0; i <	N; i++) {
+		cl::Event eventname1, eventname2, eventname3, eventname4;
+		if (i%2==0) {
+			kernel0.setArg(0, in1Buf);
+			kernel0.setArg(1, in2Buf);
+			kernel0.setArg(2, sizeof(unsigned int), &M);
+			kernel0.setArg(3, sizeof(unsigned int), &i);
+			queue.enqueueNDRangeKernel(kernel0, cl::NullRange, cl::NDRange(M), cl::NullRange, 0, &eventname1);
+			events.push_back(eventname1);
+			kernel1.setArg(0, in2Buf);
+			kernel1.setArg(1, in3Buf);
+			kernel1.setArg(2, sizeof(unsigned int), &M);
+			kernel1.setArg(3, sizeof(unsigned int), &i);
+			queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(M, M), cl::NullRange, &events, &eventname2);
+			events.push_back(eventname2);
+			eventname2.waitForEvents(events);
+			int t1 = eventname2.getProfilingInfo<CL_PROFILING_COMMAND_END>() - eventname1.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+			std::cout << t1 << std::endl;
+			//queue.enqueueCopyBuffer(in3Buf, in1Buf, 0, 0, M * M * sizeof(float), &events);
+			queue.finish();
+		}
+		else {
+			kernel2.setArg(0, in3Buf);
+			kernel2.setArg(1, in2Buf);
+			kernel2.setArg(2, sizeof(unsigned int), &M);
+			kernel2.setArg(3, sizeof(unsigned int), &i);
+			queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(M), cl::NullRange, 0, &eventname3);
+			events.push_back(eventname3);
+			kernel3.setArg(0, in2Buf);
+			kernel3.setArg(1, in1Buf);
+			kernel3.setArg(2, sizeof(unsigned int), &M);
+			kernel3.setArg(3, sizeof(unsigned int), &i);
+			queue.enqueueNDRangeKernel(kernel3, cl::NullRange, cl::NDRange(M, M), cl::NullRange, &events, &eventname4);
+			events.push_back(eventname4);
+			eventname4.waitForEvents(events);
+			int t2 = eventname4.getProfilingInfo<CL_PROFILING_COMMAND_END>() - eventname3.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+			std::cout <<t2 << std::endl;
+			//queue.enqueueCopyBuffer(in3Buf, in1Buf, 0, 0, M * M * sizeof(float), &events);
+			queue.finish();
+		}
+		
+	}
+
+	queue.enqueueReadBuffer(in3Buf, CL_TRUE, 0, M * M * sizeof(float), out,&events);
+	
 	queue.finish();
 }
 
