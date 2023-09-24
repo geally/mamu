@@ -361,3 +361,14 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/solve.txt
+/mamu/solve.txt
+/output.txt
+/output2.txt
+/testdata - 副本.txt
+/testdata.txt
+/mamu/testdata.txt
+/mamu/output2.txt
+/mamu/solve100.txt
+*.txt
+/mamu/fix.txt
