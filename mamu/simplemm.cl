@@ -23,6 +23,7 @@ __kernel void mamu(__global float* a,
         sum += a[rowIndex*K + k] * b[k*N + colIndex];
     }
     c[index] = sum;
+   // printf("%f",c[index]);
 }
 
 
@@ -149,8 +150,8 @@ __kernel void transpose(__global float* a,
     int x = get_global_id(0);
     int y = get_global_id(1);
    
-   b[N*y+x]=a[x*N+y];
-    printf("%f",b[N*y+x]);
+   b[N*y+x]=a[x*M+y];
+  // printf("%i",a[x*N+y]);
     
 }
 
