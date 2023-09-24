@@ -134,10 +134,10 @@ int main() {
 	//transpose(b.data(), cp.data(), N, 8);
 	//parmamu(a.data(), b.data(), cp.data(), M, N, O);
 	//quar(b.data(), a.data(), cp.data(), 8, N );
-	 quarxz(c.data(), a.data(), z.data(), cp.data(), 8, N, 19);
+	// quarxz(c.data(), a.data(), z.data(), cp.data(), 8, N, 19);
 	//rbind(a.data(), b.data(), cp.data(), M, N, O);
 	//pretreat(a.data(),cp.data(), M, 0);
-	//CMatrix(c.data(), z.data(), a.data(), a.data(), cp.data(), 8, 19, 16);
+	CMatrix(c.data(), z.data(), a.data(), a.data(), cp.data(), 8, 19, 16);
 
 	end = clock();
 	double parTime = ((double)10e2 * (end - start)) / CLOCKS_PER_SEC;
@@ -147,16 +147,13 @@ int main() {
 	//write the vector into a outputfile
 	
 
-	//std::ofstream outfile("output2.txt");
-	//std::ostream_iterator<int> outiterator(outfile, "\n");
+	std::ofstream outfile("output.txt");
+	std::ostream_iterator<int> outiterator(outfile, "\n");
 
-	/*for (const auto& t : cp) {
+	for (const auto& t : cp) {
 		outfile << t << std::endl;
-	};*/
+	};
 	
-	//test the result 
-	//std::vector<float> temp(ROWS_A * COLS_B);
-	//parmamu(a.data(), b.data(), temp.data(), M, N, O);
 	
 	for (int i = 0; i < cp.size(); i++) {
 
@@ -536,7 +533,7 @@ void quarxz(float* x, float* r, float* z, float* c, const int M, const int N,con
 	cl::Buffer xBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * M * sizeof(float), x);
 	cl::Buffer rBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * N * sizeof(float), r);
 	cl::Buffer zBuf(context, CL_MEM_READ_ONLY | CL_MEM_HOST_NO_ACCESS | CL_MEM_COPY_HOST_PTR, N * O * sizeof(float), z);
-	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * M * sizeof(float));
+	cl::Buffer cBuf(context, CL_MEM_WRITE_ONLY | CL_MEM_HOST_READ_ONLY, M * O * sizeof(float));
 
 	cl::Buffer tempBuftz(context, CL_MEM_READ_WRITE, O * N * sizeof(float));
 	cl::Buffer tempBufxr(context, CL_MEM_READ_WRITE, M * N * sizeof(float));
@@ -589,19 +586,14 @@ void quarxz(float* x, float* r, float* z, float* c, const int M, const int N,con
 	queue.enqueueNDRangeKernel(kernel1, cl::NullRange, cl::NDRange(N, M), cl::NullRange, &events, &eventname2);
 	events.push_back(eventname2);
 	eventname2.waitForEvents(events);
-	int t2 = eventname2.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-	std::cout << "t2:" << t2 << std::endl;
+
 	//queue.enqueueReadBuffer(tempBufxr, CL_TRUE, 0, N * M * sizeof(float), c);
 
-	queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(M,O), cl::NullRange, &events, &eventname3);
+	queue.enqueueNDRangeKernel(kernel2, cl::NullRange, cl::NDRange(O,N), cl::NullRange, &events, &eventname3);
 	events.push_back(eventname3);
 	eventname3.waitForEvents(events);
-	int t3 = eventname3.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-	std::cout << "t3:" << t3 << std::endl;
-
-	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * O * sizeof(float), c);
-	//queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * O * sizeof(float), c, &events, &eventname4);
-	//events.push_back(eventname4);
-	//eventname4.waitForEvents(events);
+	queue.enqueueReadBuffer(cBuf, CL_TRUE, 0, M * O * sizeof(float), c, &events, &eventname4);
+	events.push_back(eventname4);
+	eventname4.waitForEvents(events);
 	queue.finish();
 }
