@@ -1,5 +1,5 @@
 # mamu
-This project is aiming to develop a software whcih can be used to estimate the quantitative genetic parameter. This software will use opencl and GPU solve the Matrix multiplication and inverse.
+This project is aiming to develop a software which can be used to estimate the quantitative genetic parameter. This software will use opencl and GPU solve the Matrix multiplication and inverse.
 AI Reml average information restricted maxium likelihood algorithm will be used.
 For now the C matrix generation was completed. Following functions will be added in future:
 
